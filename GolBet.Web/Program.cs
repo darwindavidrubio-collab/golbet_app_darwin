@@ -1,6 +1,7 @@
 using GolBet.Repositories.Data;
 using GolBet.Repositories.Implementations;
 using GolBet.Repositories.Interfaces;
+using GolBet.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,6 +19,12 @@ builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepositor
 
 // Specific repositories
 builder.Services.AddScoped<IMatchRepository, MatchRepository>();
+
+// AutoMapper: scans the assembly containing MappingProfile for all profiles
+builder.Services.AddAutoMapper(typeof(GolBet.Services.Mapping.MappingProfile));
+
+// Business services
+builder.Services.AddScoped<IMatchService, GolBet.Services.Implementations.MatchService>();
 
 
 var app = builder.Build();
