@@ -18,9 +18,17 @@ public class MatchService : IMatchService
         _mapper = mapper;
     }
 
+    // Módulo 4: Cartelera
     public async Task<IEnumerable<MatchDto>> GetBoardAsync(MatchStatus? status = null)
     {
         var matches = await _matchRepository.GetAllWithTeamsAsync(status);
         return _mapper.Map<IEnumerable<MatchDto>>(matches);
+    }
+
+    // Módulo 5: Detalle del partido
+    public async Task<MatchDetailDto?> GetDetailAsync(int id)
+    {
+        var match = await _matchRepository.GetByIdWithDetailsAsync(id);
+        return match is null ? null : _mapper.Map<MatchDetailDto>(match);
     }
 }
