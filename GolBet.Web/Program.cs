@@ -1,8 +1,14 @@
 using GolBet.Repositories.Data;
 using GolBet.Repositories.Implementations;
 using GolBet.Repositories.Interfaces;
+using GolBet.Services.Implementations;
 using GolBet.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
+
+var culture = new CultureInfo("es-CO");
+CultureInfo.DefaultThreadCurrentCulture = culture;
+CultureInfo.DefaultThreadCurrentUICulture = culture;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +31,8 @@ builder.Services.AddAutoMapper(typeof(GolBet.Services.Mapping.MappingProfile));
 
 // Business services
 builder.Services.AddScoped<IMatchService, GolBet.Services.Implementations.MatchService>();
+builder.Services.AddScoped<ITeamService, TeamService>();
+
 
 
 var app = builder.Build();

@@ -1,8 +1,10 @@
 ﻿// GolBet.Services/Implementations/MatchService.cs
 using AutoMapper;
+using GolBet.Entities;
 using GolBet.Entities.Enums;
 using GolBet.Repositories.Interfaces;
 using GolBet.Services.DTOs;
+using GolBet.Services.Helpers;
 using GolBet.Services.Interfaces;
 
 namespace GolBet.Services.Implementations;
@@ -18,17 +20,76 @@ public class MatchService : IMatchService
         _mapper = mapper;
     }
 
-    // Módulo 4: Cartelera
+    // ==========================================
+    // LECTURA (Módulos 4 y 5)
+    // ==========================================
+
     public async Task<IEnumerable<MatchDto>> GetBoardAsync(MatchStatus? status = null)
     {
         var matches = await _matchRepository.GetAllWithTeamsAsync(status);
         return _mapper.Map<IEnumerable<MatchDto>>(matches);
     }
 
-    // Módulo 5: Detalle del partido
     public async Task<MatchDetailDto?> GetDetailAsync(int id)
     {
         var match = await _matchRepository.GetByIdWithDetailsAsync(id);
         return match is null ? null : _mapper.Map<MatchDetailDto>(match);
+    }
+
+    // ==========================================
+    // ESCRITURA (Módulo 6)
+    // ==========================================
+
+    public async Task<MatchFormDto?> GetForEditAsync(int id)
+    {
+        var match = await _matchRepository.GetByIdAsync(id);
+        if (match is null) return null;
+
+        var dto = _mapper.Map<MatchFormDto>(match);
+        dto.Date = dto.Date.ToColombiaTime();
+        return dto;
+    }
+
+    public async Task CreateAsync(MatchFormDto dto)
+    {
+        ValidateBusinessRules(dto);
+        var match = _mapper.Map<Match>(dto);
+
+        // Convertimos la hora de Colombia (formulario) a UTC (Base de datos)
+        match.Date = dto.Date.ToUtcFromColombia();
+        await _matchRepository.AddAsync(match);
+    }
+
+    public async Task UpdateAsync(MatchFormDto dto)
+    {
+        ValidateBusinessRules(dto);
+        var match = await _matchRepository.GetByIdAsync(dto.Id)
+            ?? throw new KeyNotFoundException($"Match {dto.Id} not found.");
+
+        _mapper.Map(dto, match);
+
+        // Convertimos la hora de Colombia (formulario) a UTC (Base de datos)
+        match.Date = dto.Date.ToUtcFromColombia();
+        await _matchRepository.UpdateAsync(match);
+    }
+
+    public async Task DeactivateAsync(int id)
+        => await _matchRepository.DeactivateAsync(id);
+
+    // ==========================================
+    // REGLAS DE NEGOCIO
+    // ==========================================
+
+    private static void ValidateBusinessRules(MatchFormDto dto)
+    {
+        // Regla: Un equipo no puede jugar contra sí mismo
+        if (dto.HomeTeamId == dto.AwayTeamId)
+            throw new InvalidOperationException(
+                "El equipo local y el visitante no pueden ser el mismo.");
+
+        // Regla: Los partidos programados deben ser en el futuro
+        if (dto.Date.ToUtcFromColombia() <= DateTime.UtcNow)
+            throw new InvalidOperationException(
+                "La fecha del partido debe ser futura.");
     }
 }
