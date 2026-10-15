@@ -1,11 +1,12 @@
 ﻿// GolBet.Repositories/Data/AppDbContext.cs
 using GolBet.Entities;
 using GolBet.Entities.Common;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace GolBet.Repositories.Data;
 
-public class AppDbContext : DbContext
+public class AppDbContext : IdentityDbContext<AppUser>
 {
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
@@ -41,10 +42,20 @@ public class AppDbContext : DbContext
 
         // A match with bets cannot be deleted
         modelBuilder.Entity<Bet>()
-            .HasOne(b => b.Match)
-            .WithMany(m => m.Bets)
-            .HasForeignKey(b => b.MatchId)
-            .OnDelete(DeleteBehavior.Restrict);
+                .HasOne(b => b.User)
+                .WithMany(u => u.Bets)
+                .HasForeignKey(b => b.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+        // Regla de negocio #3: el mismo usuario no puede repetir la misma selección (Pick) en un partido
+        modelBuilder.Entity<Bet>()
+            .HasIndex(b => new { b.MatchId, b.UserId, b.Pick })
+            .IsUnique();
+
+        // Precisión del saldo de FutCoins (hasta 9,999,999,999.99)
+        modelBuilder.Entity<AppUser>()
+            .Property(u => u.Balance)
+            .HasPrecision(12, 2);
     }
 
     // Automatic audit timestamps
