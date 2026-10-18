@@ -9,35 +9,32 @@ namespace GolBet.Repositories.Implementations;
 
 public class MatchRepository : GenericRepository<Match>, IMatchRepository
 {
-    public MatchRepository(AppDbContext context) : base(context) { }
+    private readonly AppDbContext _context;
 
-    public async Task<IEnumerable<Match>> GetAllWithTeamsAsync(MatchStatus? status = null)
+    public MatchRepository(AppDbContext context) : base(context)
     {
-        var query = _dbSet
+        _context = context;
+    }
+
+    public async Task<IEnumerable<Match>> GetAllWithTeamsAsync(MatchStatus? status = null, string? search = null)
+    {
+        var query = _context.Matches
             .Include(m => m.HomeTeam)
             .Include(m => m.AwayTeam)
-            .Where(m => m.IsActive)
-            .AsNoTracking()
             .AsQueryable();
 
         if (status.HasValue)
+        {
             query = query.Where(m => m.Status == status.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            query = query.Where(m =>
+                m.HomeTeam.Name.Contains(search) ||
+                m.AwayTeam.Name.Contains(search));
+        }
 
         return await query.OrderBy(m => m.Date).ToListAsync();
     }
-
-    public async Task<Match?> GetByIdWithDetailsAsync(int id)
-    {
-        var query = await _dbSet
-            .Where(m => m.Id == id)
-            .Include(m => m.HomeTeam)
-            .Include(m => m.AwayTeam)
-            .Include(m => m.Bets)
-            .AsNoTracking()
-            .FirstOrDefaultAsync();
-
-        return query;
-
-    } 
-     
 }

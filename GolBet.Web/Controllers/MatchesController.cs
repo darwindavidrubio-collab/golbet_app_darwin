@@ -1,17 +1,18 @@
 ﻿// GolBet.Web/Controllers/MatchesController.cs
+using GolBet.Entities.Enums;
+using GolBet.Repositories.Data;
 using GolBet.Services.DTOs;
 using GolBet.Services.Interfaces;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering; // Necesario para SelectList
 using Microsoft.AspNetCore.Authorization;
-using GolBet.Repositories.Data;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace GolBet.Web.Controllers;
 
 public class MatchesController : Controller
 {
     private readonly IMatchService _matchService;
-    private readonly ITeamService _teamService; // Añadimos el servicio de equipos
+    private readonly ITeamService _teamService;
 
     public MatchesController(IMatchService matchService, ITeamService teamService)
     {
@@ -19,31 +20,38 @@ public class MatchesController : Controller
         _teamService = teamService;
     }
 
-    // GET /Matches (Ya lo tenías)
-    public async Task<IActionResult> Index()
-        => View(await _matchService.GetBoardAsync());
+    // [Módulo 7] - AllowAnonymous 
+    [AllowAnonymous]
 
-    // GET /Matches/Detail/5 (Ya lo tenías)
+    // [Módulo 4, 5] - Mod 5 trajo el filtro status y para el Taller trae el filtro search
+    public async Task<IActionResult> Index(MatchStatus? status, string? search)
+    {
+        var matches = await _matchService.GetAllAsync(status, search);
+
+        ViewBag.CurrentStatus = status; // [Módulo 5]
+        ViewBag.CurrentSearch = search; // [Search]
+
+        return View(matches);
+    }
+
+    // [Módulo 7] - Público para todo el mundo
+    [AllowAnonymous]
     public async Task<IActionResult> Detail(int id)
     {
-        var match = await _matchService.GetDetailAsync(id);
+        var match = await _matchService.GetByIdAsync(id);
         if (match is null) return NotFound();
         return View(match);
     }
 
-    // ==========================================
-    // NUEVO MÓDULO 6: CRUD DE PARTIDOS
-    // ==========================================
-
-    // GET /Matches/Create
+    // [Módulo 7] - Authorize 
     [Authorize(Roles = DbSeeder.AdminRole)]
     public async Task<IActionResult> Create()
     {
-        await LoadTeamsAsync();
+        await LoadTeamsAsync(); // [Módulo 4]
         return View(new MatchFormDto());
     }
 
-    // POST /Matches/Create
+    // [Módulo 7] - Candado de Admin
     [HttpPost, ValidateAntiForgeryToken]
     [Authorize(Roles = DbSeeder.AdminRole)]
     public async Task<IActionResult> Create(MatchFormDto dto)
@@ -53,23 +61,21 @@ public class MatchesController : Controller
             await LoadTeamsAsync();
             return View(dto);
         }
-
         try
         {
             await _matchService.CreateAsync(dto);
-            TempData["Success"] = "Partido creado correctamente.";
+            TempData["Success"] = "Partido creado correctamente."; // [Módulo 4]
             return RedirectToAction(nameof(Index));
         }
         catch (InvalidOperationException ex)
         {
-            // Atrapa las reglas de negocio ("Mismo equipo", "Fecha pasada")
             ModelState.AddModelError(string.Empty, ex.Message);
             await LoadTeamsAsync();
             return View(dto);
         }
     }
 
-    // GET /Matches/Edit/5
+    // [Módulo 7] - Candado de Admin
     [Authorize(Roles = DbSeeder.AdminRole)]
     public async Task<IActionResult> Edit(int id)
     {
@@ -80,7 +86,7 @@ public class MatchesController : Controller
         return View(dto);
     }
 
-    // POST /Matches/Edit
+    // [Módulo 7] - Candado de Admin
     [HttpPost, ValidateAntiForgeryToken]
     [Authorize(Roles = DbSeeder.AdminRole)]
     public async Task<IActionResult> Edit(MatchFormDto dto)
@@ -90,7 +96,6 @@ public class MatchesController : Controller
             await LoadTeamsAsync();
             return View(dto);
         }
-
         try
         {
             await _matchService.UpdateAsync(dto);
@@ -105,7 +110,7 @@ public class MatchesController : Controller
         }
     }
 
-    // POST /Matches/Deactivate/5
+    // [Módulo 7] - Candado de Admin
     [HttpPost, ValidateAntiForgeryToken]
     [Authorize(Roles = DbSeeder.AdminRole)]
     public async Task<IActionResult> Deactivate(int id)
@@ -115,7 +120,7 @@ public class MatchesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    // Helper para cargar los Dropdowns
+    // [Módulo 4] - Carga los equipos para los SelectList de las vistas
     private async Task LoadTeamsAsync()
     {
         var teams = await _teamService.GetAllAsync();

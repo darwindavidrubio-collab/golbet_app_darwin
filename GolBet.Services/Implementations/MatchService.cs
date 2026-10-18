@@ -4,8 +4,8 @@ using GolBet.Entities;
 using GolBet.Entities.Enums;
 using GolBet.Repositories.Interfaces;
 using GolBet.Services.DTOs;
-using GolBet.Services.Helpers;
 using GolBet.Services.Interfaces;
+using GolBet.Services.Helpers;
 
 namespace GolBet.Services.Implementations;
 
@@ -20,46 +20,41 @@ public class MatchService : IMatchService
         _mapper = mapper;
     }
 
-    // ==========================================
-    // LECTURA (Módulos 4 y 5)
-    // ==========================================
-
-    public async Task<IEnumerable<MatchDto>> GetBoardAsync(MatchStatus? status = null)
+    // [Módulos 4, 5 y Taller] - El método base es del Mod 4, 'status' se agregó en Mod 5, y 'search' en el Taller
+    public async Task<IEnumerable<MatchDto>> GetAllAsync(MatchStatus? status = null, string? search = null)
     {
-        var matches = await _matchRepository.GetAllWithTeamsAsync(status);
+        var matches = await _matchRepository.GetAllWithTeamsAsync(status, search);
         return _mapper.Map<IEnumerable<MatchDto>>(matches);
     }
 
-    public async Task<MatchDetailDto?> GetDetailAsync(int id)
+    // [Módulo 4] - Obtener por ID para el detalle
+    public async Task<MatchDetailDto?> GetByIdAsync(int id)
     {
-        var match = await _matchRepository.GetByIdWithDetailsAsync(id);
+        var match = await _matchRepository.GetByIdAsync(id);
         return match is null ? null : _mapper.Map<MatchDetailDto>(match);
     }
 
-    // ==========================================
-    // ESCRITURA (Módulo 6)
-    // ==========================================
-
+    // [Módulo 4 y 6] - Obtener para editar y convertir la hora UTC a hora de Colombia (Mod 6)
     public async Task<MatchFormDto?> GetForEditAsync(int id)
     {
         var match = await _matchRepository.GetByIdAsync(id);
         if (match is null) return null;
 
         var dto = _mapper.Map<MatchFormDto>(match);
-        dto.Date = dto.Date.ToColombiaTime();
+        dto.Date = dto.Date.ToColombiaTime(); // [Módulo 6]
         return dto;
     }
 
+    // [Módulo 4 y 6] - Crear partido y convertir la hora de Colombia a UTC antes de guardar (Mod 6)
     public async Task CreateAsync(MatchFormDto dto)
     {
         ValidateBusinessRules(dto);
         var match = _mapper.Map<Match>(dto);
-
-        // Convertimos la hora de Colombia (formulario) a UTC (Base de datos)
-        match.Date = dto.Date.ToUtcFromColombia();
+        match.Date = dto.Date.ToUtcFromColombia(); // [Módulo 6]
         await _matchRepository.AddAsync(match);
     }
 
+    // [Módulo 4 y 6] - Actualizar partido con conversión de hora UTC
     public async Task UpdateAsync(MatchFormDto dto)
     {
         ValidateBusinessRules(dto);
@@ -67,29 +62,23 @@ public class MatchService : IMatchService
             ?? throw new KeyNotFoundException($"Match {dto.Id} not found.");
 
         _mapper.Map(dto, match);
-
-        // Convertimos la hora de Colombia (formulario) a UTC (Base de datos)
-        match.Date = dto.Date.ToUtcFromColombia();
+        match.Date = dto.Date.ToUtcFromColombia(); // [Módulo 6]
         await _matchRepository.UpdateAsync(match);
     }
 
+    // [Módulo 4] - Desactivar partido
     public async Task DeactivateAsync(int id)
-        => await _matchRepository.DeactivateAsync(id);
+    {
+        await _matchRepository.DeactivateAsync(id);
+    }
 
-    // ==========================================
-    // REGLAS DE NEGOCIO
-    // ==========================================
-
+    // [Módulo 4 y 6] - Validaciones de negocio centralizadas
     private static void ValidateBusinessRules(MatchFormDto dto)
     {
-        // Regla: Un equipo no puede jugar contra sí mismo
         if (dto.HomeTeamId == dto.AwayTeamId)
-            throw new InvalidOperationException(
-                "El equipo local y el visitante no pueden ser el mismo.");
+            throw new InvalidOperationException("El equipo local y el visitante no pueden ser el mismo.");
 
-        // Regla: Los partidos programados deben ser en el futuro
         if (dto.Date.ToUtcFromColombia() <= DateTime.UtcNow)
-            throw new InvalidOperationException(
-                "La fecha del partido debe ser futura.");
+            throw new InvalidOperationException("La fecha del partido debe ser futura.");
     }
 }
