@@ -30,7 +30,8 @@ public class MatchService : IMatchService
     // [Módulo 4] - Obtener por ID para el detalle
     public async Task<MatchDetailDto?> GetByIdAsync(int id)
     {
-        var match = await _matchRepository.GetByIdAsync(id);
+        // Cambiamos a GetMatchWithDetailsAsync para incluir la lista de apuestas y que el contador funcione
+        var match = await _matchRepository.GetMatchWithDetailsAsync(id);
         return match is null ? null : _mapper.Map<MatchDetailDto>(match);
     }
 

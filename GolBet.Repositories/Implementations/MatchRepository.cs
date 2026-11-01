@@ -37,4 +37,16 @@ public class MatchRepository : GenericRepository<Match>, IMatchRepository
 
         return await query.OrderBy(m => m.Date).ToListAsync();
     }
+
+    // ==========================================
+    // NUEVO MÉTODO PARA EL DETALLE DEL PARTIDO
+    // ==========================================
+    public async Task<Match?> GetMatchWithDetailsAsync(int id)
+    {
+        return await _context.Matches
+            .Include(m => m.HomeTeam)
+            .Include(m => m.AwayTeam)
+            .Include(m => m.Bets) 
+            .FirstOrDefaultAsync(m => m.Id == id);
+    }
 }

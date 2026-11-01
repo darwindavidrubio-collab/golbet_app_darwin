@@ -17,6 +17,10 @@ public class MappingProfile : Profile
             .ForMember(dto => dto.TotalBets,
                        options => options.MapFrom(match => match.Bets.Count));
 
+        CreateMap<Bet, BetDto>()
+            .ForMember(dto => dto.PotentialPayout,
+                        options => options.MapFrom(bet => bet.Amount * bet.OddsAtPlacement));
+
 
         // Módulo 6: CRUD de Equipos y Partidos
         CreateMap<Team, TeamDto>();
