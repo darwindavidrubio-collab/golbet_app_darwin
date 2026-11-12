@@ -12,4 +12,8 @@ public interface IMatchService
     Task CreateAsync(MatchFormDto dto);
     Task UpdateAsync(MatchFormDto dto);
     Task DeactivateAsync(int id);
+
+    // [Módulo 9] - Máquina de estados y resolución de apuestas
+    Task StartMatchAsync(int id);
+    Task<ResolutionSummaryDto> CloseMatchAsync(MatchResultFormDto dto);
 }
