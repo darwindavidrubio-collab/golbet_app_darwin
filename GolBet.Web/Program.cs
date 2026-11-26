@@ -7,16 +7,17 @@ using GolBet.Services.Interfaces;
 using GolBet.Services.Implementations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Serilog; // [Módulo 10]
 
 var culture = new CultureInfo("es-CO");
-// Dates in Spanish; numbers neutral so model binding reads "2.5" correctly
-culture.NumberFormat = (NumberFormatInfo)CultureInfo.InvariantCulture.NumberFormat.Clone();
-culture.NumberFormat.NumberGroupSeparator = "";   // "2,5" fails loudly, never binds as 25 
-
 CultureInfo.DefaultThreadCurrentCulture = culture;
 CultureInfo.DefaultThreadCurrentUICulture = culture;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// [Módulo 10] - Conectar Serilog desde appsettings.json
+builder.Host.UseSerilog((context, config) =>
+    config.ReadFrom.Configuration(context.Configuration));
 
 builder.Services.AddControllersWithViews();
 
@@ -44,20 +45,17 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 // Registros de Repositorios, AutoMapper y Servicios
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
-builder.Services.AddScoped<IMatchRepository, MatchRepository>(); // <- Conservamos tu repositorio específico
-
+builder.Services.AddScoped<IMatchRepository, MatchRepository>();
 builder.Services.AddAutoMapper(typeof(GolBet.Services.Mapping.MappingProfile));
-
 builder.Services.AddScoped<IMatchService, GolBet.Services.Implementations.MatchService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
-
 builder.Services.AddScoped<IBetRepository, BetRepository>();
 builder.Services.AddScoped<IBetService, BetService>();
 
 var app = builder.Build();
 
 // ==========================================
-// MÓDULO 7: SEEDING 
+// MÓDULO 7: SEEDING
 // ==========================================
 using (var scope = app.Services.CreateScope())
 {
@@ -68,14 +66,23 @@ using (var scope = app.Services.CreateScope())
     await DbSeeder.SeedAsync(context, roleManager, userManager);
 }
 
+// ==========================================
+// MÓDULO 10: MANEJO DE ERRORES (500 y 404)
+// ==========================================
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
+    app.UseExceptionHandler("/Error/General");
     app.UseHsts();
 }
 
+app.UseStatusCodePagesWithReExecute("/Error/{0}");
+
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+// [Módulo 10] - Log limpio de cada petición HTTP
+app.UseSerilogRequestLogging();
+
 app.UseRouting();
 
 // ==========================================
